@@ -1,0 +1,9 @@
+{
+  "name": "fairytale-detective",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Data-driven portrait logic puzzle prototype for Cocos Creator 3.x",
+  "scripts": {
+    "validate:puzzles": "node tests/validate-puzzles.mjs"
+  }
+}
