@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Graphics, Label, Node, resources, Sprite, SpriteFrame, Texture2D, tween, UIOpacity, UITransform, Vec3 } from 'cc';
+import { _decorator, Color, Component, Graphics, ImageAsset, Label, Node, resources, Sprite, SpriteFrame, Texture2D, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 import { PuzzleEngine } from '../core/PuzzleEngine';
 import { ProgressStore } from '../core/ProgressStore';
 import { SoundController } from '../core/SoundController';
@@ -114,16 +114,26 @@ export class GameApp extends Component {
   }
 
   private art(parent: Node, resourcePath: string, x: number, y: number, width: number, height: number): void {
-    resources.load(resourcePath, Texture2D, (error, texture) => {
-      if (error || !texture || !parent.isValid) return;
+    // PNG files in a resources folder are imported as ImageAsset on all 3.x
+    // targets. Converting explicitly avoids the silent Texture2D redirect
+    // failure that occurred in preview on this project.
+    resources.load(resourcePath, ImageAsset, (error, imageAsset) => {
+      if (error || !imageAsset || !parent.isValid) {
+        // Keep this diagnostic in the browser console if a future asset is moved.
+        console.warn(`[Art] Unable to load ${resourcePath}`, error);
+        return;
+      }
       const image = new Node('art');
       parent.addChild(image);
       image.setPosition(x, y);
       // Background colour is child 0; illustration belongs immediately above it.
       image.setSiblingIndex(1);
       image.addComponent(UITransform).setContentSize(width, height);
+      const texture = new Texture2D(); texture.image = imageAsset;
       const frame = new SpriteFrame(); frame.texture = texture;
-      image.addComponent(Sprite).spriteFrame = frame;
+      const sprite = image.addComponent(Sprite);
+      sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+      sprite.spriteFrame = frame;
       const opacity = image.addComponent(UIOpacity); opacity.opacity = 0;
       tween(opacity).to(0.3, { opacity: 255 }).start();
     });
