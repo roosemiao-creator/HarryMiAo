@@ -1,6 +1,7 @@
 import { _decorator, Color, Component, Graphics, Label, Node, resources, Sprite, SpriteFrame, Texture2D, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 import { PuzzleEngine } from '../core/PuzzleEngine';
 import { ProgressStore } from '../core/ProgressStore';
+import { SoundController } from '../core/SoundController';
 import { Assignment, AttributeCategory, CellRef, GameMode, PuzzleDefinition } from '../core/PuzzleTypes';
 import { CHALLENGE_PUZZLES, CHAPTER_TITLES, STORY_PUZZLES } from '../data/Puzzles';
 const { ccclass } = _decorator;
@@ -20,8 +21,10 @@ const CLUE_BG = new Color('#805C4C');
 @ccclass('GameApp')
 export class GameApp extends Component {
   private readonly store = new ProgressStore();
+  private readonly sounds = new SoundController();
   private engine?: PuzzleEngine;
   private mode: GameMode = 'challenge';
+  private view: 'home' | 'levels' | 'puzzle' = 'home';
   private erasing = false;
   private toast = '';
   /** Canvas also owns Camera; only this dynamic root may be destroyed. */
@@ -67,12 +70,21 @@ export class GameApp extends Component {
     tween(node).to(0.16, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' }).start();
   }
 
+  /** Short, springy entrances give every screen a deliberate game-like rhythm. */
+  private reveal(node: Node, delay = 0): void {
+    const opacity = node.getComponent(UIOpacity) ?? node.addComponent(UIOpacity);
+    opacity.opacity = 0;
+    node.setScale(0.86, 0.86, 1);
+    tween(node).delay(delay).to(0.22, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' }).start();
+    tween(opacity).delay(delay).to(0.15, { opacity: 255 }).start();
+  }
+
   private button(parent: Node, value: string, x: number, y: number, width: number, height: number, onClick: () => void, color = PRIMARY, fontSize = 30): Node {
     const button = this.panel(parent, x, y, width, height, color, 22);
     this.text(button, value, 0, 0, width - 18, height - 10, fontSize, Color.WHITE);
-    button.on(Node.EventType.TOUCH_START, () => button.setScale(0.96, 0.96, 1), this);
+    button.on(Node.EventType.TOUCH_START, () => tween(button).to(0.07, { scale: new Vec3(0.94, 0.94, 1) }).start(), this);
     button.on(Node.EventType.TOUCH_CANCEL, () => button.setScale(1, 1, 1), this);
-    button.on(Node.EventType.TOUCH_END, () => { button.setScale(1, 1, 1); onClick(); }, this);
+    button.on(Node.EventType.TOUCH_END, () => { tween(button).to(0.14, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' }).start(); this.sounds.touch(); onClick(); }, this);
     return button;
   }
 
@@ -89,6 +101,7 @@ export class GameApp extends Component {
     this.screen = root;
     this.panel(root, 0, 815, 1080, 170, new Color('#FFFDF7'), 0);
     this.chip(root, '童话侦探社', -285, 826, 220, PRIMARY_DARK);
+    this.button(root, this.sounds.enabled ? '声音 开' : '声音 关', 410, 826, 160, 54, () => { this.sounds.toggle(); this.renderCurrentScreen(); }, this.sounds.enabled ? new Color('#74B88E') : new Color('#9AA5B0'), 21);
     this.text(root, title, 80, 822, 600, 58, 42, INK);
     if (subtitle) this.text(root, subtitle, 80, 764, 720, 40, 23, MUTED);
     return root;
@@ -100,7 +113,7 @@ export class GameApp extends Component {
       const image = new Node('art');
       parent.addChild(image);
       image.setPosition(x, y);
-      image.setSiblingIndex(1);
+      image.setSiblingIndex(0);
       image.addComponent(UITransform).setContentSize(width, height);
       const frame = new SpriteFrame(); frame.texture = texture;
       image.addComponent(Sprite).spriteFrame = frame;
@@ -110,6 +123,7 @@ export class GameApp extends Component {
   }
 
   private showHome(): void {
+    this.view = 'home';
     const root = this.baseScreen('欢迎回来，侦探', '从一条线索开始，拼出整个真相。');
     this.art(root, 'art/detective-hero', 0, 220, 920, 1500);
     const card = this.panel(root, 0, 230, 900, 330, new Color('#FFFDF9'), 32); this.pop(card);
@@ -121,12 +135,19 @@ export class GameApp extends Component {
     this.chip(root, `擦除 ${this.store.erasers}`, 150, -385, 230, new Color('#C9E1EC'), INK);
   }
 
+  private renderCurrentScreen(): void {
+    if (this.view === 'puzzle' && this.engine) this.renderPuzzle();
+    else if (this.view === 'levels') this.showLevelSelect(this.mode);
+    else this.showHome();
+  }
+
   private showLevelSelect(mode: GameMode): void {
+    this.view = 'levels';
     this.mode = mode;
     const puzzles = mode === 'challenge' ? CHALLENGE_PUZZLES : STORY_PUZZLES;
     const root = this.baseScreen(mode === 'challenge' ? '侦探训练' : '故事案件簿', mode === 'challenge' ? '每一关都会加入更多交叉关系。' : '顺着案件线索，接近钟楼的真相。');
     this.button(root, '返回', -430, 700, 155, 64, () => this.showHome(), new Color('#95A1AC'), 24);
-    if (mode === 'story') this.art(root, 'art/story-map', 0, 520, 780, 438);
+    if (mode === 'story') this.art(root, 'art/story-case-map', 0, 520, 780, 438);
     let y = mode === 'story' ? 270 : 600;
     puzzles.forEach((puzzle, index) => {
       if (mode === 'story' && (index === 0 || [2, 4, 7].includes(index))) this.text(root, `第${puzzle.chapter}章 · ${CHAPTER_TITLES[(puzzle.chapter ?? 1) - 1]}`, 0, y + 64, 850, 38, 25, PRIMARY_DARK);
@@ -134,12 +155,14 @@ export class GameApp extends Component {
       const done = this.store.isComplete(puzzle.id);
       const title = `${done ? '✓ ' : unlocked ? '' : '🔒 '}${String(puzzle.order).padStart(2, '0')}  ${puzzle.title}`;
       const color = unlocked ? (done ? MINT : PRIMARY) : new Color('#B9B5AE');
-      this.button(root, title, 0, y, 860, 74, () => { if (unlocked) this.startPuzzle(puzzle); }, color, 27);
+      const levelButton = this.button(root, title, 0, y, 860, 74, () => { if (unlocked) this.startPuzzle(puzzle); }, color, 27);
+      this.reveal(levelButton, index * 0.045);
       y -= mode === 'story' ? 92 : 96;
     });
   }
 
   private startPuzzle(puzzle: PuzzleDefinition): void {
+    this.view = 'puzzle';
     this.engine = new PuzzleEngine(puzzle);
     this.erasing = false;
     this.toast = puzzle.stages[0].narrator ?? '';
@@ -150,6 +173,7 @@ export class GameApp extends Component {
     const engine = this.engine!;
     const puzzle = engine.puzzle;
     const root = this.baseScreen(puzzle.title, puzzle.subtitle);
+    this.art(root, 'art/puzzle-parchment', 0, 0, 1080, 1920);
     this.button(root, '‹', -470, 820, 70, 62, () => this.showLevelSelect(this.mode), new Color('#95A1AC'), 38);
     this.chip(root, `难度 ${puzzle.difficulty}`, -276, 692, 170, GOLD, INK);
     this.chip(root, `线索 ${engine.unlockedClueCount}/${engine.totalClueCount}`, -62, 692, 205, new Color('#D9EBD6'), new Color('#3B7957'));
@@ -178,6 +202,7 @@ export class GameApp extends Component {
     clues.forEach((clue, index) => {
       const y = 66 - index * 95;
       const card = this.panel(cluePanel, 0, y, 910, 74, new Color('#FFF8E6'), 18);
+      if (animate) this.reveal(card, 0.08 + index * 0.07);
       this.text(card, clue.text, 0, 0, 860, 62, 23, INK);
     });
     this.button(root, `提示  ${this.store.hints}`, -210, -742, 390, 82, () => this.useHint(), GOLD, 28);
@@ -201,9 +226,9 @@ export class GameApp extends Component {
   private choose(assignment: Assignment): void {
     const priorStage = this.engine!.activeStageIndex;
     const result = this.engine!.fill(assignment);
-    if (result === 'incorrect') this.toast = this.engine!.isGameOver ? '证据链被打乱了，重新调查吧。' : '这项推断不成立，失去一颗生命。';
+    if (result === 'incorrect') { this.sounds.wrong(); this.toast = this.engine!.isGameOver ? '证据链被打乱了，重新调查吧。' : '这项推断不成立，失去一颗生命。'; }
     else if (result === 'complete') { this.completePuzzle(); return; }
-    else if (result === 'correct') this.toast = this.engine!.activeStageIndex > priorStage ? '新的关系证据已送达。' : '记录正确，继续串联线索。';
+    else if (result === 'correct') { this.sounds.correct(); if (this.engine!.activeStageIndex > priorStage) this.sounds.reveal(); this.toast = this.engine!.activeStageIndex > priorStage ? '新的关系证据已送达。' : '记录正确，继续串联线索。'; }
     this.renderPuzzle(true);
     if (this.engine!.isGameOver) this.showFailure();
   }
