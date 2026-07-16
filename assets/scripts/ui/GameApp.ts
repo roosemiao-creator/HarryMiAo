@@ -96,9 +96,15 @@ export class GameApp extends Component {
 
   private baseScreen(title: string, subtitle = ''): Node {
     this.clear();
-    const root = this.panel(this.node, 0, 0, 1080, 1920, BG, 0);
+    // Do not put a Graphics component on the root. A root renderer is drawn
+    // above asynchronously loaded child sprites on some Cocos UI batches.
+    const root = new Node('GameRoot');
+    this.node.addChild(root);
+    root.addComponent(UITransform).setContentSize(1080, 1920);
     root.name = 'GameRoot';
     this.screen = root;
+    // Fallback colour is a child, so artwork can be layered directly above it.
+    this.panel(root, 0, 0, 1080, 1920, BG, 0);
     this.panel(root, 0, 815, 1080, 170, new Color('#FFFDF7'), 0);
     this.chip(root, '童话侦探社', -285, 826, 220, PRIMARY_DARK);
     this.button(root, this.sounds.enabled ? '声音 开' : '声音 关', 410, 826, 160, 54, () => { this.sounds.toggle(); this.renderCurrentScreen(); }, this.sounds.enabled ? new Color('#74B88E') : new Color('#9AA5B0'), 21);
@@ -113,7 +119,8 @@ export class GameApp extends Component {
       const image = new Node('art');
       parent.addChild(image);
       image.setPosition(x, y);
-      image.setSiblingIndex(0);
+      // Background colour is child 0; illustration belongs immediately above it.
+      image.setSiblingIndex(1);
       image.addComponent(UITransform).setContentSize(width, height);
       const frame = new SpriteFrame(); frame.texture = texture;
       image.addComponent(Sprite).spriteFrame = frame;
