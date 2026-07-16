@@ -7,9 +7,10 @@ const storyBlock = source.match(/const storyThemes: Theme\[] = \[([\s\S]*?)\n\] 
 
 assert.equal((challengeBlock.match(/^  \[/gm) ?? []).length, 10, 'must ship ten challenge puzzles');
 assert.equal((storyBlock.match(/^  \[/gm) ?? []).length, 10, 'must ship ten story puzzles');
-assert.match(source, /const groups = \[clues\.slice\(0, 2\), clues\.slice\(2, 4\), clues\.slice\(4, 6\), clues\.slice\(6, 9\)\]/, 'puzzles must expose evidence in 2/2/2/3 stages');
-assert.match(source, /directBudgets/, 'levels must vary the amount of direct evidence by difficulty');
-assert.match(source, /关联：|排除：/, 'levels must include relationship and elimination evidence');
+assert.match(source, /const groups = \[anchors, firstLinks, secondLinks\]/, 'puzzles must expose the three-step deduction chain');
+assert.match(source, /既不是.*也不是/, 'puzzles must begin with meaningful identity exclusions');
+assert.match(source, /使用.*的客人，选择的是/, 'puzzles must link the first and second attributes');
+assert.match(source, /的客人，位于/, 'puzzles must link the second and third attributes');
 assert.match(source, /requiredCells: unlockKeys\[index\]/, 'stage unlocks must be linked to verified key deductions');
 
 const engine = readFileSync(new URL('../assets/scripts/core/PuzzleEngine.ts', import.meta.url), 'utf8');

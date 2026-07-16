@@ -143,7 +143,7 @@ export class GameApp extends Component {
     this.view = 'home';
     const root = this.baseScreen('欢迎回来，侦探', '从一条线索开始，拼出整个真相。');
     // The case map is deliberately visible on launch, not hidden behind a later menu.
-    this.art(root, 'art/story-case-map', 0, 0, 1080, 1920);
+    this.art(root, 'art/ui-home-v2', 0, 0, 1080, 1920);
     const card = this.panel(root, 0, 230, 900, 330, new Color('#FFFDF9'), 32); this.pop(card);
     this.text(card, '案件档案已整理完毕', 0, 92, 720, 52, 34);
     this.text(card, '观察 · 排除 · 关联', 0, 37, 720, 40, 25, MUTED);
@@ -164,8 +164,8 @@ export class GameApp extends Component {
     this.mode = mode;
     const puzzles = mode === 'challenge' ? CHALLENGE_PUZZLES : STORY_PUZZLES;
     const root = this.baseScreen(mode === 'challenge' ? '侦探训练' : '故事案件簿', mode === 'challenge' ? '每一关都会加入更多交叉关系。' : '顺着案件线索，接近钟楼的真相。');
+    this.art(root, 'art/ui-level-select-v2', 0, 0, 1080, 1920);
     this.button(root, '返回', -430, 700, 155, 64, () => this.showHome(), new Color('#95A1AC'), 24);
-    if (mode === 'story') this.art(root, 'art/story-case-map', 0, 520, 780, 438);
     let y = mode === 'story' ? 270 : 600;
     puzzles.forEach((puzzle, index) => {
       if (mode === 'story' && (index === 0 || [2, 4, 7].includes(index))) this.text(root, `第${puzzle.chapter}章 · ${CHAPTER_TITLES[(puzzle.chapter ?? 1) - 1]}`, 0, y + 64, 850, 38, 25, PRIMARY_DARK);
@@ -191,7 +191,7 @@ export class GameApp extends Component {
     const engine = this.engine!;
     const puzzle = engine.puzzle;
     const root = this.baseScreen(puzzle.title, puzzle.subtitle);
-    this.art(root, 'art/puzzle-parchment', 0, 0, 1080, 1920);
+    this.art(root, 'art/ui-gameplay-v2', 0, 0, 1080, 1920);
     this.button(root, '‹', -470, 820, 70, 62, () => this.showLevelSelect(this.mode), new Color('#95A1AC'), 38);
     this.chip(root, `难度 ${puzzle.difficulty}`, -276, 692, 170, GOLD, INK);
     this.chip(root, `线索 ${engine.unlockedClueCount}/${engine.totalClueCount}`, -62, 692, 205, new Color('#D9EBD6'), new Color('#3B7957'));

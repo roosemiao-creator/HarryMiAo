@@ -52,37 +52,49 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
       solution.push({ entityId: entities[entityIndex].id, categoryId: categories[categoryIndex].id, optionId: `o${(entityIndex + categoryIndex + order) % 3}` });
     }
   }
-  const directBudgets = mode === 'challenge'
-    ? [7, 6, 6, 5, 7, 5, 5, 4, 5, 4]
-    : [5, 5, 4, 5, 4, 4, 5, 4, 4, 4];
-  // Two early anchors, then one key deduction per subsequent batch.
-  const directSlots = [0, 1, 2, 4, 6, 8, 3, 5, 7];
-  const directSet = new Set(directSlots.slice(0, directBudgets[order - 1] ?? 4));
   const details = (assignment: Assignment) => {
     const entity = entities.find((item) => item.id === assignment.entityId)!;
     const category = categories.find((item) => item.id === assignment.categoryId)!;
     const option = category.options.find((item) => item.id === assignment.optionId)!;
     return { entity, category, option };
   };
-  const clues: Clue[] = solution.map((assignment, index) => {
-    const current = details(assignment);
-    if (directSet.has(index)) {
-      const wording = index % 2 === 0
-        ? `证词：${current.entity.icon}${current.entity.name}选择了${current.option.icon}${current.option.label}。`
-        : `记录：${current.entity.icon}${current.entity.name}的${current.category.label}是${current.option.icon}${current.option.label}。`;
-      return { id: `${mode}-${order}-clue-${index}`, text: wording, completesWhen: [assignment] };
-    }
-    const sameEntity = solution.find((candidate) => candidate.entityId === assignment.entityId && candidate.categoryId !== assignment.categoryId)!;
-    const otherEntity = solution.find((candidate) => candidate.entityId !== assignment.entityId && candidate.categoryId !== assignment.categoryId)!;
-    const partner = index % 2 === 0 ? sameEntity : otherEntity;
-    const linked = details(partner);
-    const wording = index % 2 === 0
-      ? `关联：${current.option.icon}${current.option.label}的${current.category.label}，与${linked.option.icon}${linked.option.label}的${linked.category.label}属于同一位伙伴。`
-      : `排除：${current.option.icon}${current.option.label}的${current.category.label}，不属于使用${linked.option.icon}${linked.option.label}的${linked.category.label}的伙伴。`;
-    return { id: `${mode}-${order}-clue-${index}`, text: wording, completesWhen: [assignment, partner] };
+  const assignmentFor = (entityIndex: number, categoryIndex: number) => solution.find(
+    (item) => item.entityId === entities[entityIndex].id && item.categoryId === categories[categoryIndex].id,
+  )!;
+  /**
+   * Evidence is authored as a deduction chain, not a list of answers:
+   * identity exclusions establish the first attribute, then two independent
+   * attribute-to-attribute matchings propagate the answer through the grid.
+   */
+  const anchors: Clue[] = entities.map((entity, entityIndex) => {
+    const answer = assignmentFor(entityIndex, 0);
+    const current = details(answer);
+    const wrongOptions = categories[0].options.filter((option) => option.id !== answer.optionId);
+    const text = entityIndex === 0 || order <= 2
+      ? `排除：${entity.icon}${entity.name}的${current.category.label}既不是${wrongOptions[0].icon}${wrongOptions[0].label}，也不是${wrongOptions[1].icon}${wrongOptions[1].label}。`
+      : `排除：${entity.icon}${entity.name}不使用${wrongOptions[0].icon}${wrongOptions[0].label}的${current.category.label}。`;
+    return { id: `${mode}-${order}-anchor-${entityIndex}`, text, completesWhen: [answer] };
   });
-  const groups = [clues.slice(0, 2), clues.slice(2, 4), clues.slice(4, 6), clues.slice(6, 9)];
-  const unlockKeys = [[], [solution[0], solution[1]], [solution[2]], [solution[4]]];
+  const firstLinks: Clue[] = entities.map((entity, entityIndex) => {
+    const left = assignmentFor(entityIndex, 0); const right = assignmentFor(entityIndex, 1);
+    const a = details(left); const b = details(right);
+    return {
+      id: `${mode}-${order}-link-a-${entityIndex}`,
+      text: `关联：使用${a.option.icon}${a.option.label}${a.category.label}的客人，选择的是${b.option.icon}${b.option.label}。`,
+      completesWhen: [left, right],
+    };
+  });
+  const secondLinks: Clue[] = entities.map((entity, entityIndex) => {
+    const left = assignmentFor(entityIndex, 1); const right = assignmentFor(entityIndex, 2);
+    const a = details(left); const b = details(right);
+    return {
+      id: `${mode}-${order}-link-b-${entityIndex}`,
+      text: `关联：${a.option.icon}${a.option.label}的客人，位于${b.option.icon}${b.option.label}。`,
+      completesWhen: [left, right],
+    };
+  });
+  const groups = [anchors, firstLinks, secondLinks];
+  const unlockKeys = [[], [assignmentFor(0, 0)], [assignmentFor(1, 0), assignmentFor(0, 1)]];
   return {
     id: `${mode}-${String(order).padStart(2, '0')}`,
     mode,
@@ -96,7 +108,7 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     solution,
     stages: groups.map((group, index) => ({
       id: `stage-${index + 1}`,
-      narrator: index === 0 ? '先锁定两条可靠证词。' : index === 3 ? '把所有关联串起来，答案就在其中。' : '新的关系线索已解锁。',
+      narrator: index === 0 ? '先用排除法找出第一组锚点。' : index === 1 ? '把第一组属性与第二组属性配对。' : '最后一层关系会把整张表串起来。',
       clues: group,
       unlock: index === 0 ? {} : { requiredCells: unlockKeys[index] },
     })),
