@@ -1,17 +1,21 @@
-import { _decorator, Color, Component, Graphics, Label, Node, resources, Sprite, SpriteFrame, Texture2D, UITransform } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, resources, Sprite, SpriteFrame, Texture2D, tween, UIOpacity, UITransform, Vec3 } from 'cc';
 import { PuzzleEngine } from '../core/PuzzleEngine';
 import { ProgressStore } from '../core/ProgressStore';
 import { Assignment, AttributeCategory, CellRef, GameMode, PuzzleDefinition } from '../core/PuzzleTypes';
 import { CHALLENGE_PUZZLES, CHAPTER_TITLES, STORY_PUZZLES } from '../data/Puzzles';
 const { ccclass } = _decorator;
 
-const CREAM = new Color('#FFF9E8');
-const INK = new Color('#443527');
-const BLUE = new Color('#4A94B8');
-const GREEN = new Color('#77AD66');
-const GOLD = new Color('#E8BA58');
-const RED = new Color('#D8655C');
-const PANEL = new Color('#F0D7A9');
+const BG = new Color('#FFF8E9');
+const SURFACE = new Color('#FFFFFF');
+const INK = new Color('#2F3B4A');
+const MUTED = new Color('#778294');
+const PRIMARY = new Color('#4E9BC0');
+const PRIMARY_DARK = new Color('#377A9B');
+const MINT = new Color('#74B88E');
+const GOLD = new Color('#F1BB52');
+const CORAL = new Color('#E67670');
+const SAND = new Color('#EFE7D8');
+const CLUE_BG = new Color('#805C4C');
 
 @ccclass('GameApp')
 export class GameApp extends Component {
@@ -20,7 +24,7 @@ export class GameApp extends Component {
   private mode: GameMode = 'challenge';
   private erasing = false;
   private toast = '';
-  /** The Canvas also owns its Camera; never clear Canvas children wholesale. */
+  /** Canvas also owns Camera; only this dynamic root may be destroyed. */
   private screen?: Node;
 
   start(): void { this.showHome(); }
@@ -29,24 +33,24 @@ export class GameApp extends Component {
     if (this.screen?.isValid) this.screen.destroy();
     this.screen = undefined;
   }
-  private panel(parent: Node, x: number, y: number, width: number, height: number, color = PANEL, radius = 20): Node {
+
+  private panel(parent: Node, x: number, y: number, width: number, height: number, color = SURFACE, radius = 26): Node {
     const node = new Node('panel');
     parent.addChild(node);
     node.setPosition(x, y);
-    const transform = node.addComponent(UITransform);
-    transform.setContentSize(width, height);
-    const graphics = node.addComponent(Graphics);
-    graphics.fillColor = color;
-    graphics.roundRect(-width / 2, -height / 2, width, height, radius);
-    graphics.fill();
+    node.addComponent(UITransform).setContentSize(width, height);
+    const graphic = node.addComponent(Graphics);
+    graphic.fillColor = color;
+    radius > 0 ? graphic.roundRect(-width / 2, -height / 2, width, height, radius) : graphic.rect(-width / 2, -height / 2, width, height);
+    graphic.fill();
     return node;
   }
-  private text(parent: Node, value: string, x: number, y: number, width: number, height: number, size = 34, color = INK): Node {
-    const node = new Node('text');
+
+  private text(parent: Node, value: string, x: number, y: number, width: number, height: number, size = 30, color = INK): Node {
+    const node = new Node('label');
     parent.addChild(node);
     node.setPosition(x, y);
-    const transform = node.addComponent(UITransform);
-    transform.setContentSize(width, height);
+    node.addComponent(UITransform).setContentSize(width, height);
     const label = node.addComponent(Label);
     label.string = value;
     label.fontSize = size;
@@ -57,64 +61,81 @@ export class GameApp extends Component {
     label.overflow = Label.Overflow.SHRINK;
     return node;
   }
-  private button(parent: Node, value: string, x: number, y: number, width: number, height: number, onClick: () => void, color = BLUE): Node {
-    const button = this.panel(parent, x, y, width, height, color);
-    this.text(button, value, 0, 0, width - 12, height - 8, 32, Color.WHITE);
-    button.on(Node.EventType.TOUCH_END, onClick, this);
+
+  private pop(node: Node): void {
+    node.setScale(0.94, 0.94, 1);
+    tween(node).to(0.16, { scale: new Vec3(1, 1, 1) }, { easing: 'backOut' }).start();
+  }
+
+  private button(parent: Node, value: string, x: number, y: number, width: number, height: number, onClick: () => void, color = PRIMARY, fontSize = 30): Node {
+    const button = this.panel(parent, x, y, width, height, color, 22);
+    this.text(button, value, 0, 0, width - 18, height - 10, fontSize, Color.WHITE);
+    button.on(Node.EventType.TOUCH_START, () => button.setScale(0.96, 0.96, 1), this);
+    button.on(Node.EventType.TOUCH_CANCEL, () => button.setScale(1, 1, 1), this);
+    button.on(Node.EventType.TOUCH_END, () => { button.setScale(1, 1, 1); onClick(); }, this);
     return button;
   }
-  private background(title: string, subtitle = ''): Node {
+
+  private chip(parent: Node, value: string, x: number, y: number, width: number, color: Color, textColor = Color.WHITE): Node {
+    const chip = this.panel(parent, x, y, width, 52, color, 26);
+    this.text(chip, value, 0, 0, width - 14, 42, 23, textColor);
+    return chip;
+  }
+
+  private baseScreen(title: string, subtitle = ''): Node {
     this.clear();
-    const root = this.panel(this.node, 0, 0, 1080, 1920, CREAM, 0);
+    const root = this.panel(this.node, 0, 0, 1080, 1920, BG, 0);
     root.name = 'GameRoot';
     this.screen = root;
-    this.text(root, '🕵️ 童话侦探社', 0, 825, 840, 80, 50, INK);
-    this.text(root, title, 0, 735, 900, 68, 42, INK);
-    if (subtitle) this.text(root, subtitle, 0, 680, 900, 52, 26, new Color('#75604B'));
+    this.panel(root, 0, 815, 1080, 170, new Color('#FFFDF7'), 0);
+    this.chip(root, '童话侦探社', -285, 826, 220, PRIMARY_DARK);
+    this.text(root, title, 80, 822, 600, 58, 42, INK);
+    if (subtitle) this.text(root, subtitle, 80, 764, 720, 40, 23, MUTED);
     return root;
   }
-  /** Decorative art is optional at runtime: gameplay remains available while it loads. */
+
   private art(parent: Node, resourcePath: string, x: number, y: number, width: number, height: number): void {
     resources.load(resourcePath, Texture2D, (error, texture) => {
       if (error || !texture || !parent.isValid) return;
-      const node = new Node('illustration');
-      parent.addChild(node);
-      node.setPosition(x, y);
-      node.setSiblingIndex(1); // Above the background panel, below the screen controls.
-      node.addComponent(UITransform).setContentSize(width, height);
-      const frame = new SpriteFrame();
-      frame.texture = texture;
-      node.addComponent(Sprite).spriteFrame = frame;
+      const image = new Node('art');
+      parent.addChild(image);
+      image.setPosition(x, y);
+      image.setSiblingIndex(1);
+      image.addComponent(UITransform).setContentSize(width, height);
+      const frame = new SpriteFrame(); frame.texture = texture;
+      image.addComponent(Sprite).spriteFrame = frame;
+      const opacity = image.addComponent(UIOpacity); opacity.opacity = 0;
+      tween(opacity).to(0.3, { opacity: 255 }).start();
     });
   }
 
   private showHome(): void {
-    const root = this.background('推理、发现、揭开童话真相', '每次只会拿到刚好足够的新证据');
-    this.art(root, 'art/title-hero', 0, 360, 900, 635);
-    this.panel(root, 0, 300, 840, 390, new Color('#F5E4BF'));
-    this.text(root, '🔎', 0, 400, 240, 180, 150);
-    this.text(root, '找出每个人、每件物品与每条线索的正确关系。', 0, 245, 700, 80, 30);
-    this.button(root, '闯关训练', 0, 40, 640, 112, () => this.showLevelSelect('challenge'), GREEN);
-    this.button(root, '故事模式', 0, -110, 640, 112, () => this.showLevelSelect('story'), GOLD);
-    this.text(root, `💡 ${this.store.hints}    🧽 ${this.store.erasers}`, 0, -280, 520, 60, 30, BLUE);
+    const root = this.baseScreen('欢迎回来，侦探', '从一条线索开始，拼出整个真相。');
+    this.art(root, 'art/detective-hero', 0, 220, 920, 1500);
+    const card = this.panel(root, 0, 230, 900, 330, new Color('#FFFDF9'), 32); this.pop(card);
+    this.text(card, '案件档案已整理完毕', 0, 92, 720, 52, 34);
+    this.text(card, '观察 · 排除 · 关联', 0, 37, 720, 40, 25, MUTED);
+    this.button(card, '开始训练', 0, -65, 650, 94, () => this.showLevelSelect('challenge'), MINT, 32);
+    this.button(root, '进入故事案件', 0, -255, 650, 94, () => this.showLevelSelect('story'), GOLD, 32);
+    this.chip(root, `提示 ${this.store.hints}`, -150, -385, 230, new Color('#F7D891'), INK);
+    this.chip(root, `擦除 ${this.store.erasers}`, 150, -385, 230, new Color('#C9E1EC'), INK);
   }
 
   private showLevelSelect(mode: GameMode): void {
     this.mode = mode;
     const puzzles = mode === 'challenge' ? CHALLENGE_PUZZLES : STORY_PUZZLES;
-    const root = this.background(mode === 'challenge' ? '皇家侦探训练' : '童话案件簿', mode === 'challenge' ? '完成前一关即可开启下一项训练' : '按案件顺序揭开钟楼真相');
-    if (mode === 'story') this.art(root, 'art/story-map', 0, 510, 780, 438);
-    this.button(root, '‹ 返回', -400, 825, 190, 70, () => this.showHome(), new Color('#86715B'));
-    let y = 540;
+    const root = this.baseScreen(mode === 'challenge' ? '侦探训练' : '故事案件簿', mode === 'challenge' ? '每一关都会加入更多交叉关系。' : '顺着案件线索，接近钟楼的真相。');
+    this.button(root, '返回', -430, 700, 155, 64, () => this.showHome(), new Color('#95A1AC'), 24);
+    if (mode === 'story') this.art(root, 'art/story-map', 0, 520, 780, 438);
+    let y = mode === 'story' ? 270 : 600;
     puzzles.forEach((puzzle, index) => {
-      if (mode === 'story' && (index === 0 || [2, 4, 7].includes(index))) {
-        this.text(root, `第${puzzle.chapter}章 · ${CHAPTER_TITLES[(puzzle.chapter ?? 1) - 1]}`, 0, y + 70, 850, 50, 28, new Color('#8B5F43'));
-      }
+      if (mode === 'story' && (index === 0 || [2, 4, 7].includes(index))) this.text(root, `第${puzzle.chapter}章 · ${CHAPTER_TITLES[(puzzle.chapter ?? 1) - 1]}`, 0, y + 64, 850, 38, 25, PRIMARY_DARK);
       const unlocked = this.store.isUnlocked(puzzle, puzzles);
-      const completed = this.store.isComplete(puzzle.id);
-      const label = `${completed ? '✓ ' : unlocked ? '' : '🔒 '}${puzzle.order}. ${puzzle.title}`;
-      this.button(root, label, 0, y, 800, 78, () => { if (unlocked) this.startPuzzle(puzzle); }, unlocked ? (completed ? GREEN : BLUE) : new Color('#B5A795'));
-      y -= 106;
+      const done = this.store.isComplete(puzzle.id);
+      const title = `${done ? '✓ ' : unlocked ? '' : '🔒 '}${String(puzzle.order).padStart(2, '0')}  ${puzzle.title}`;
+      const color = unlocked ? (done ? MINT : PRIMARY) : new Color('#B9B5AE');
+      this.button(root, title, 0, y, 860, 74, () => { if (unlocked) this.startPuzzle(puzzle); }, color, 27);
+      y -= mode === 'story' ? 92 : 96;
     });
   }
 
@@ -122,69 +143,68 @@ export class GameApp extends Component {
     this.engine = new PuzzleEngine(puzzle);
     this.erasing = false;
     this.toast = puzzle.stages[0].narrator ?? '';
-    this.renderPuzzle();
+    this.renderPuzzle(true);
   }
 
-  private renderPuzzle(): void {
+  private renderPuzzle(animate = false): void {
     const engine = this.engine!;
     const puzzle = engine.puzzle;
-    const root = this.background(puzzle.title, puzzle.subtitle);
-    this.button(root, '‹', -470, 825, 78, 70, () => this.showLevelSelect(this.mode), new Color('#86715B'));
-    this.text(root, `生命 ${'♥'.repeat(engine.lives)}${'♡'.repeat(puzzle.lives - engine.lives)}`, 180, 825, 310, 60, 30, RED);
-    this.text(root, `线索 ${engine.unlockedClueCount}/${engine.totalClueCount}`, 0, 625, 420, 55, 30, GREEN);
+    const root = this.baseScreen(puzzle.title, puzzle.subtitle);
+    this.button(root, '‹', -470, 820, 70, 62, () => this.showLevelSelect(this.mode), new Color('#95A1AC'), 38);
+    this.chip(root, `难度 ${puzzle.difficulty}`, -276, 692, 170, GOLD, INK);
+    this.chip(root, `线索 ${engine.unlockedClueCount}/${engine.totalClueCount}`, -62, 692, 205, new Color('#D9EBD6'), new Color('#3B7957'));
+    this.chip(root, `♥ ${engine.lives}/${puzzle.lives}`, 220, 692, 160, new Color('#F7D7D4'), CORAL);
 
-    const grid = this.panel(root, 0, 285, 1000, 620, new Color('#FFFDF4'));
-    const left = -330;
-    const colWidth = 220;
-    puzzle.entities.forEach((entity, index) => this.text(grid, `${entity.icon}\n${entity.name}`, left + (index + 1) * colWidth, 250, 200, 100, 27));
+    const grid = this.panel(root, 0, 265, 1010, 690, SURFACE, 30); if (animate) this.pop(grid);
+    const labelX = -382; const colWidth = 232;
+    puzzle.entities.forEach((entity, col) => this.text(grid, `${entity.icon}\n${entity.name}`, labelX + (col + 1) * colWidth, 265, 205, 96, 27));
     puzzle.categories.forEach((category, row) => {
-      const y = 120 - row * 155;
-      this.text(grid, category.label, left, y, 160, 100, 27, new Color('#77583E'));
+      const y = 100 - row * 175;
+      this.chip(grid, category.label, labelX, y, 148, new Color('#F6F0E6'), INK);
       puzzle.entities.forEach((entity, col) => {
         const cell = { entityId: entity.id, categoryId: category.id };
-        const value = engine.getAnswer(cell);
-        const option = category.options.find((item) => item.id === value);
-        const locked = !!(puzzle.initialAssignments ?? []).find((item) => item.entityId === cell.entityId && item.categoryId === cell.categoryId);
-        this.button(grid, option ? `${option.icon}\n${option.label}` : '？', left + (col + 1) * colWidth, y, 190, 120, () => this.handleCell(cell, category), option ? (locked ? new Color('#D8E9C9') : new Color('#C6DEF0')) : new Color('#ECE5D5'));
+        const answer = engine.getAnswer(cell);
+        const option = category.options.find((item) => item.id === answer);
+        const fixed = !!(puzzle.initialAssignments ?? []).find((item) => item.entityId === cell.entityId && item.categoryId === cell.categoryId);
+        this.button(grid, option ? `${option.icon} ${option.label}` : '选择', labelX + (col + 1) * colWidth, y, 205, 108, () => this.handleCell(cell, category), option ? (fixed ? new Color('#B9DCC3') : new Color('#C6E4F0')) : SAND, 25);
       });
     });
 
-    const cluePanel = this.panel(root, 0, -420, 1000, 410, new Color('#A77858'));
-    this.text(cluePanel, `第 ${engine.activeStageIndex + 1} 批证据`, -340, 165, 260, 45, 26, Color.WHITE);
-    this.text(cluePanel, engine.activeStage.narrator ?? '', 50, 165, 600, 45, 24, new Color('#FFF0D0'));
-    engine.shownClues.forEach((clue, index) => {
-      const complete = engine.completedClueIds.has(clue.id);
-      this.panel(cluePanel, 0, 85 - index * 105, 900, 82, complete ? new Color('#A9C991') : new Color('#FFF2D1'));
-      this.text(cluePanel, `${complete ? '✓ ' : '• '}${clue.text}`, 0, 85 - index * 105, 850, 70, 25, complete ? new Color('#3A643A') : INK);
+    const cluePanel = this.panel(root, 0, -465, 1010, 390, CLUE_BG, 30);
+    this.chip(cluePanel, `证据批次 ${engine.activeStageIndex + 1}`, -330, 151, 245, new Color('#A87D63'));
+    this.text(cluePanel, engine.activeStage.narrator ?? '', 100, 151, 590, 44, 24, new Color('#FFF0D0'));
+    const clues = engine.shownClues;
+    if (clues.length === 0) this.text(cluePanel, '所有证据都已被串联，完成表格即可结案。', 0, 0, 840, 60, 27, Color.WHITE);
+    clues.forEach((clue, index) => {
+      const y = 66 - index * 95;
+      const card = this.panel(cluePanel, 0, y, 910, 74, new Color('#FFF8E6'), 18);
+      this.text(card, clue.text, 0, 0, 860, 62, 23, INK);
     });
-    this.button(root, `💡 提示 ${this.store.hints}`, -250, -720, 330, 82, () => this.useHint(), GOLD);
-    this.button(root, `${this.erasing ? '正在擦除' : '🧽 擦除'} ${this.store.erasers}`, 180, -720, 360, 82, () => { this.erasing = !this.erasing; this.renderPuzzle(); }, this.erasing ? RED : BLUE);
-    if (this.toast) this.text(root, this.toast, 0, -825, 960, 52, 26, new Color('#71553D'));
+    this.button(root, `提示  ${this.store.hints}`, -210, -742, 390, 82, () => this.useHint(), GOLD, 28);
+    this.button(root, this.erasing ? '结束擦除' : `擦除  ${this.store.erasers}`, 220, -742, 390, 82, () => { this.erasing = !this.erasing; this.toast = this.erasing ? '点选一格以擦除自己的记录。' : ''; this.renderPuzzle(); }, this.erasing ? CORAL : PRIMARY, 28);
+    if (this.toast) this.text(root, this.toast, 0, -845, 960, 38, 23, MUTED);
   }
 
   private handleCell(cell: CellRef, category: AttributeCategory): void {
     const engine = this.engine!;
-    if (this.erasing) {
-      if (engine.erase(cell)) this.toast = '已擦除这项记录。'; else this.toast = '这项是已知证据，不能擦除。';
-      this.renderPuzzle();
-      return;
-    }
+    if (this.erasing) { this.toast = engine.erase(cell) ? '已擦除这项记录。' : '已知证据不能擦除。'; this.renderPuzzle(); return; }
     if (engine.getAnswer(cell)) return;
     const root = this.screen!;
-    const shade = this.panel(root, 0, 0, 1080, 1920, new Color(0, 0, 0, 150), 0);
-    const dialog = this.panel(shade, 0, 0, 900, 520, CREAM);
-    this.text(dialog, `选择${category.label}`, 0, 180, 700, 60, 40);
-    category.options.forEach((option, index) => this.button(dialog, `${option.icon} ${option.label}`, 0, 70 - index * 120, 650, 90, () => this.choose({ ...cell, optionId: option.id }), BLUE));
-    this.button(dialog, '取消', 0, -190, 280, 65, () => this.renderPuzzle(), new Color('#86715B'));
+    const shade = this.panel(root, 0, 0, 1080, 1920, new Color(20, 28, 38, 175), 0);
+    const dialog = this.panel(shade, 0, 0, 900, 620, new Color('#FFFDF8'), 34); this.pop(dialog);
+    this.text(dialog, `选择${category.label}`, 0, 225, 720, 60, 38);
+    this.text(dialog, '根据当前证据作出判断', 0, 172, 620, 34, 22, MUTED);
+    category.options.forEach((option, index) => this.button(dialog, `${option.icon}  ${option.label}`, 0, 75 - index * 105, 650, 82, () => this.choose({ ...cell, optionId: option.id }), PRIMARY, 28));
+    this.button(dialog, '取消', 0, -235, 250, 62, () => this.renderPuzzle(), new Color('#9A8A77'), 24);
   }
 
   private choose(assignment: Assignment): void {
     const priorStage = this.engine!.activeStageIndex;
     const result = this.engine!.fill(assignment);
-    if (result === 'incorrect') this.toast = this.engine!.isGameOver ? '线索被打乱了，重新整理案件吧。' : '这条记录不对，失去一颗生命。';
+    if (result === 'incorrect') this.toast = this.engine!.isGameOver ? '证据链被打乱了，重新调查吧。' : '这项推断不成立，失去一颗生命。';
     else if (result === 'complete') { this.completePuzzle(); return; }
-    else if (result === 'correct') this.toast = this.engine!.activeStageIndex > priorStage ? '新的证据送到了！' : '记录正确。继续核对线索。';
-    this.renderPuzzle();
+    else if (result === 'correct') this.toast = this.engine!.activeStageIndex > priorStage ? '新的关系证据已送达。' : '记录正确，继续串联线索。';
+    this.renderPuzzle(true);
     if (this.engine!.isGameOver) this.showFailure();
   }
 
@@ -192,28 +212,19 @@ export class GameApp extends Component {
     const hint = this.engine!.getHint();
     if (!hint || !this.store.consumeHint()) { this.toast = '没有可用提示了。'; this.renderPuzzle(); return; }
     const result = this.engine!.fill(hint);
-    this.toast = result === 'complete' ? '提示完成了最后一条记录！' : '提示已补全一项可确定的记录。';
+    this.toast = result === 'complete' ? '最后一项记录已补全！' : '提示补全了一项当前可推导的记录。';
     if (result === 'complete') { this.completePuzzle(); return; }
-    this.renderPuzzle();
+    this.renderPuzzle(true);
   }
 
-  private showFailure(): void {
-    const root = this.screen!;
-    const overlay = this.panel(root, 0, 0, 1080, 1920, new Color(0, 0, 0, 150), 0);
-    this.panel(overlay, 0, 0, 820, 480, CREAM);
-    this.text(overlay, '证据链断开了', 0, 105, 700, 70, 46, RED);
-    this.text(overlay, '重新整理线索，再试一次。', 0, 25, 700, 55, 30);
-    this.button(overlay, '重新调查', 0, -120, 520, 95, () => this.startPuzzle(this.engine!.puzzle), BLUE);
-  }
+  private showFailure(): void { this.showOutcome('证据链断开了', '整理已知关系后，再次挑战案件。', '重新调查', CORAL, () => this.startPuzzle(this.engine!.puzzle)); }
+  private completePuzzle(): void { const puzzle = this.engine!.puzzle; this.store.complete(puzzle); this.showOutcome('案件解决！', puzzle.mode === 'story' ? '新的剧情档案已经解锁。' : '训练完成，下一关会加入更多关联线索。', '返回案件簿', MINT, () => this.showLevelSelect(puzzle.mode)); }
 
-  private completePuzzle(): void {
-    const puzzle = this.engine!.puzzle;
-    this.store.complete(puzzle);
-    const root = this.screen!;
-    const overlay = this.panel(root, 0, 0, 1080, 1920, new Color(0, 0, 0, 150), 0);
-    this.panel(overlay, 0, 0, 860, 530, CREAM);
-    this.text(overlay, '案件解决！', 0, 135, 700, 75, 50, GREEN);
-    this.text(overlay, puzzle.mode === 'story' ? '新的剧情已解锁。' : '侦探训练完成。', 0, 55, 700, 55, 30);
-    this.button(overlay, '返回关卡簿', 0, -105, 570, 95, () => this.showLevelSelect(puzzle.mode), GREEN);
+  private showOutcome(title: string, body: string, action: string, color: Color, callback: () => void): void {
+    const shade = this.panel(this.screen!, 0, 0, 1080, 1920, new Color(20, 28, 38, 175), 0);
+    const dialog = this.panel(shade, 0, 0, 860, 470, new Color('#FFFDF8'), 34); this.pop(dialog);
+    this.text(dialog, title, 0, 105, 700, 72, 48, color);
+    this.text(dialog, body, 0, 25, 700, 70, 28, INK);
+    this.button(dialog, action, 0, -125, 540, 86, callback, color, 30);
   }
 }

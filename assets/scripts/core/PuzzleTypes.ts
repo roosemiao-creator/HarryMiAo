@@ -57,6 +57,8 @@ export interface PuzzleDefinition {
   order: number;
   title: string;
   subtitle: string;
+  /** 1 is onboarding; 10 expects multi-clue deduction. */
+  difficulty: number;
   entities: Entity[];
   categories: AttributeCategory[];
   solution: Assignment[];

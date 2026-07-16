@@ -45,18 +45,44 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     options: options.map((option, index) => ({ id: `o${index}`, label: option, icon: icons[index] })),
   }));
   const solution: Assignment[] = [];
-  for (let entityIndex = 0; entityIndex < entities.length; entityIndex += 1) {
-    for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex += 1) {
+  // Category-first ordering deliberately interleaves subjects. It prevents
+  // the early evidence from simply completing one character at a time.
+  for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex += 1) {
+    for (let entityIndex = 0; entityIndex < entities.length; entityIndex += 1) {
       solution.push({ entityId: entities[entityIndex].id, categoryId: categories[categoryIndex].id, optionId: `o${(entityIndex + categoryIndex + order) % 3}` });
     }
   }
-  const clues: Clue[] = solution.map((assignment, index) => {
+  const directBudgets = mode === 'challenge'
+    ? [7, 6, 6, 5, 7, 5, 5, 4, 5, 4]
+    : [5, 5, 4, 5, 4, 4, 5, 4, 4, 4];
+  // Two early anchors, then one key deduction per subsequent batch.
+  const directSlots = [0, 1, 2, 4, 6, 8, 3, 5, 7];
+  const directSet = new Set(directSlots.slice(0, directBudgets[order - 1] ?? 4));
+  const details = (assignment: Assignment) => {
     const entity = entities.find((item) => item.id === assignment.entityId)!;
     const category = categories.find((item) => item.id === assignment.categoryId)!;
     const option = category.options.find((item) => item.id === assignment.optionId)!;
-    return { id: `${mode}-${order}-clue-${index}`, text: `${entity.icon}${entity.name}的${category.label}是${option.icon}${option.label}。`, completesWhen: [assignment] };
+    return { entity, category, option };
+  };
+  const clues: Clue[] = solution.map((assignment, index) => {
+    const current = details(assignment);
+    if (directSet.has(index)) {
+      const wording = index % 2 === 0
+        ? `证词：${current.entity.icon}${current.entity.name}选择了${current.option.icon}${current.option.label}。`
+        : `记录：${current.entity.icon}${current.entity.name}的${current.category.label}是${current.option.icon}${current.option.label}。`;
+      return { id: `${mode}-${order}-clue-${index}`, text: wording, completesWhen: [assignment] };
+    }
+    const sameEntity = solution.find((candidate) => candidate.entityId === assignment.entityId && candidate.categoryId !== assignment.categoryId)!;
+    const otherEntity = solution.find((candidate) => candidate.entityId !== assignment.entityId && candidate.categoryId !== assignment.categoryId)!;
+    const partner = index % 2 === 0 ? sameEntity : otherEntity;
+    const linked = details(partner);
+    const wording = index % 2 === 0
+      ? `关联：${current.option.icon}${current.option.label}的${current.category.label}，与${linked.option.icon}${linked.option.label}的${linked.category.label}属于同一位伙伴。`
+      : `排除：${current.option.icon}${current.option.label}的${current.category.label}，不属于使用${linked.option.icon}${linked.option.label}的${linked.category.label}的伙伴。`;
+    return { id: `${mode}-${order}-clue-${index}`, text: wording, completesWhen: [assignment, partner] };
   });
   const groups = [clues.slice(0, 2), clues.slice(2, 4), clues.slice(4, 6), clues.slice(6, 9)];
+  const unlockKeys = [[], [solution[0], solution[1]], [solution[2]], [solution[4]]];
   return {
     id: `${mode}-${String(order).padStart(2, '0')}`,
     mode,
@@ -64,14 +90,15 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     order,
     title,
     subtitle,
+    difficulty: mode === 'challenge' ? order : Math.min(10, order + 2),
     entities,
     categories,
     solution,
     stages: groups.map((group, index) => ({
       id: `stage-${index + 1}`,
-      narrator: index === 0 ? '先从眼前的证词开始。' : index === 3 ? '最后一条证据会指向答案。' : '新的证据送到了！',
+      narrator: index === 0 ? '先锁定两条可靠证词。' : index === 3 ? '把所有关联串起来，答案就在其中。' : '新的关系线索已解锁。',
       clues: group,
-      unlock: index === 0 ? {} : { previousStageComplete: true, requiredCells: groups[index - 1].reduce<Assignment[]>((all, clue) => all.concat(clue.completesWhen), []) },
+      unlock: index === 0 ? {} : { requiredCells: unlockKeys[index] },
     })),
     lives: 2,
   };

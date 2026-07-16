@@ -26,7 +26,18 @@ export class PuzzleEngine {
   get activeStage(): ClueStage { return this.puzzle.stages[this.activeStageIndex]; }
   get isGameOver(): boolean { return this.lives <= 0; }
   get isComplete(): boolean { return this.answers.size === this.solution.size; }
-  get shownClues(): Clue[] { return this.activeStage?.clues ?? []; }
+  /**
+   * Keep only a small evidence stack on screen. Unsolved evidence from an
+   * earlier batch stays visible, so a newly revealed card never erases a
+   * relationship the player still needs to reason about.
+   */
+  get shownClues(): Clue[] {
+    return this.puzzle.stages
+      .slice(0, this.activeStageIndex + 1)
+      .reduce<Clue[]>((all, stage) => all.concat(stage.clues), [])
+      .filter((clue) => !this.completedClueIds.has(clue.id))
+      .slice(-3);
+  }
   get unlockedClueCount(): number {
     return this.puzzle.stages.slice(0, this.activeStageIndex + 1).reduce((sum, stage) => sum + stage.clues.length, 0);
   }
