@@ -10,13 +10,13 @@
 - 每关有 9 个答案格和 4 批线索（2 / 2 / 2 / 3）；后一批必须在前一批所有关联答案正确后才出现。
 - 即时错误扣心、两点生命、提示、擦除、LocalStorage 进度保存与顺序解锁。
 
-## 在 Cocos Creator 中打开
+## 运行
 
 1. 使用 Cocos Creator 3.8 或更高版本导入此目录。
-2. 新建一个 `Scene`，添加一个 `Canvas` 节点，将其设计分辨率设为 `1080 × 1920`，并启用安全区适配。
-3. 将 `assets/scripts/ui/GameApp.ts` 挂到 `Canvas` 节点；运行该场景即可。
+2. 直接运行 `assets/scenes/Main.scene`；它已配置为项目启动场景，并自动在 Canvas 上加载 `GameApp`。
+3. 需要 Web 包时，在 Creator 的构建面板选择 Web Mobile；本地已验证该构建路径。
 
-界面完全由 `GameApp` 运行时创建，因此首版不依赖 Prefab 或图片资源；后续美术可替换 Emoji 和基础绘制面板，而不改变关卡数据和逻辑引擎。
+界面由 `GameApp` 运行时创建；原创首页侦探图与剧情地图位于 `assets/resources/art/`，可在不改变关卡数据和逻辑引擎的情况下替换为正式美术。
 
 ## 数据扩展
 

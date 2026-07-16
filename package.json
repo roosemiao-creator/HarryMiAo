@@ -5,5 +5,9 @@
   "description": "Data-driven portrait logic puzzle prototype for Cocos Creator 3.x",
   "scripts": {
     "validate:puzzles": "node tests/validate-puzzles.mjs"
-  }
+  },
+  "creator": {
+    "version": "3.8.3"
+  },
+  "uuid": "414f4076-8fe1-4ace-82d9-744f18fbed26"
 }

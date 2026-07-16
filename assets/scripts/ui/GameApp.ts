@@ -1,4 +1,4 @@
-import { _decorator, Color, Component, Graphics, Label, Node, UITransform } from 'cc';
+import { _decorator, Color, Component, Graphics, Label, Node, resources, Sprite, SpriteFrame, Texture2D, UITransform } from 'cc';
 import { PuzzleEngine } from '../core/PuzzleEngine';
 import { ProgressStore } from '../core/ProgressStore';
 import { Assignment, AttributeCategory, CellRef, GameMode, PuzzleDefinition } from '../core/PuzzleTypes';
@@ -66,9 +66,24 @@ export class GameApp extends Component {
     if (subtitle) this.text(root, subtitle, 0, 680, 900, 52, 26, new Color('#75604B'));
     return root;
   }
+  /** Decorative art is optional at runtime: gameplay remains available while it loads. */
+  private art(parent: Node, resourcePath: string, x: number, y: number, width: number, height: number): void {
+    resources.load(resourcePath, Texture2D, (error, texture) => {
+      if (error || !texture || !parent.isValid) return;
+      const node = new Node('illustration');
+      parent.addChild(node);
+      node.setPosition(x, y);
+      node.setSiblingIndex(1); // Above the background panel, below the screen controls.
+      node.addComponent(UITransform).setContentSize(width, height);
+      const frame = new SpriteFrame();
+      frame.texture = texture;
+      node.addComponent(Sprite).spriteFrame = frame;
+    });
+  }
 
   private showHome(): void {
     const root = this.background('推理、发现、揭开童话真相', '每次只会拿到刚好足够的新证据');
+    this.art(root, 'art/title-hero', 0, 360, 900, 635);
     this.panel(root, 0, 300, 840, 390, new Color('#F5E4BF'));
     this.text(root, '🔎', 0, 400, 240, 180, 150);
     this.text(root, '找出每个人、每件物品与每条线索的正确关系。', 0, 245, 700, 80, 30);
@@ -81,6 +96,7 @@ export class GameApp extends Component {
     this.mode = mode;
     const puzzles = mode === 'challenge' ? CHALLENGE_PUZZLES : STORY_PUZZLES;
     const root = this.background(mode === 'challenge' ? '皇家侦探训练' : '童话案件簿', mode === 'challenge' ? '完成前一关即可开启下一项训练' : '按案件顺序揭开钟楼真相');
+    if (mode === 'story') this.art(root, 'art/story-map', 0, 510, 780, 438);
     this.button(root, '‹ 返回', -400, 825, 190, 70, () => this.showHome(), new Color('#86715B'));
     let y = 540;
     puzzles.forEach((puzzle, index) => {

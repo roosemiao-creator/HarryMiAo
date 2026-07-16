@@ -1,12 +1,14 @@
 import { Assignment, AttributeCategory, Clue, Entity, GameMode, PuzzleDefinition } from '../core/PuzzleTypes';
 
-interface Theme {
-  title: string;
-  subtitle: string;
-  entities: [string, string, string];
-  entityIcons: [string, string, string];
-  categories: [[string, [string, string, string], [string, string, string]], [string, [string, string, string], [string, string, string]], [string, [string, string, string], [string, string, string]]];
-}
+type CategorySpec = [string, [string, string, string], [string, string, string]];
+/** Compact authoring form used by the content tables below. */
+type Theme = [
+  title: string,
+  subtitle: string,
+  entities: [string, string, string],
+  entityIcons: [string, string, string],
+  categories: [CategorySpec, CategorySpec, CategorySpec],
+];
 
 const challengeThemes: Theme[] = [
   ['迷路的小动物', '训练 1：找回三位走失的小伙伴', ['银铃猫', '胡桃兔', '枫叶狐'], ['🐱', '🐰', '🦊'], [['丝带', ['蓝色', '红色', '紫色'], ['🔵', '🔴', '🟣']], ['点心', ['果塔', '蜂蜜饼', '奶酪'], ['🥧', '🍪', '🧀']], ['地点', ['花园', '钟楼', '河岸'], ['🌷', '🕰️', '🏞️']]]],
@@ -35,8 +37,9 @@ const storyThemes: Theme[] = [
 ] as Theme[];
 
 function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: number): PuzzleDefinition {
-  const entities: Entity[] = theme.entities.map((name, index) => ({ id: `e${index}`, name, icon: theme.entityIcons[index] }));
-  const categories: AttributeCategory[] = theme.categories.map(([label, options, icons], categoryIndex) => ({
+  const [title, subtitle, entityNames, entityIcons, categorySpecs] = theme;
+  const entities: Entity[] = entityNames.map((name, index) => ({ id: `e${index}`, name, icon: entityIcons[index] }));
+  const categories: AttributeCategory[] = categorySpecs.map(([label, options, icons], categoryIndex) => ({
     id: `c${categoryIndex}`,
     label,
     options: options.map((option, index) => ({ id: `o${index}`, label: option, icon: icons[index] })),
@@ -59,8 +62,8 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     mode,
     chapter,
     order,
-    title: theme.title,
-    subtitle: theme.subtitle,
+    title,
+    subtitle,
     entities,
     categories,
     solution,

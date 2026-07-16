@@ -1,0 +1,12 @@
+{
+  "general": {
+    "designResolution": {
+      "width": 1080,
+      "height": 1920,
+      "fitWidth": true,
+      "fitHeight": true
+    },
+    "launchScene": "33bd21cb-68dc-4dc8-bf36-cea2d4cc44fe",
+    "showFPS": false
+  }
+}
