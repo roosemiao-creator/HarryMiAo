@@ -20,10 +20,15 @@ export class GameApp extends Component {
   private mode: GameMode = 'challenge';
   private erasing = false;
   private toast = '';
+  /** The Canvas also owns its Camera; never clear Canvas children wholesale. */
+  private screen?: Node;
 
   start(): void { this.showHome(); }
 
-  private clear(): void { this.node.removeAllChildren(); }
+  private clear(): void {
+    if (this.screen?.isValid) this.screen.destroy();
+    this.screen = undefined;
+  }
   private panel(parent: Node, x: number, y: number, width: number, height: number, color = PANEL, radius = 20): Node {
     const node = new Node('panel');
     parent.addChild(node);
@@ -61,6 +66,8 @@ export class GameApp extends Component {
   private background(title: string, subtitle = ''): Node {
     this.clear();
     const root = this.panel(this.node, 0, 0, 1080, 1920, CREAM, 0);
+    root.name = 'GameRoot';
+    this.screen = root;
     this.text(root, '🕵️ 童话侦探社', 0, 825, 840, 80, 50, INK);
     this.text(root, title, 0, 735, 900, 68, 42, INK);
     if (subtitle) this.text(root, subtitle, 0, 680, 900, 52, 26, new Color('#75604B'));
@@ -163,7 +170,7 @@ export class GameApp extends Component {
       return;
     }
     if (engine.getAnswer(cell)) return;
-    const root = this.node.children[0];
+    const root = this.screen!;
     const shade = this.panel(root, 0, 0, 1080, 1920, new Color(0, 0, 0, 150), 0);
     const dialog = this.panel(shade, 0, 0, 900, 520, CREAM);
     this.text(dialog, `选择${category.label}`, 0, 180, 700, 60, 40);
@@ -191,7 +198,7 @@ export class GameApp extends Component {
   }
 
   private showFailure(): void {
-    const root = this.node.children[0];
+    const root = this.screen!;
     const overlay = this.panel(root, 0, 0, 1080, 1920, new Color(0, 0, 0, 150), 0);
     this.panel(overlay, 0, 0, 820, 480, CREAM);
     this.text(overlay, '证据链断开了', 0, 105, 700, 70, 46, RED);
@@ -202,7 +209,7 @@ export class GameApp extends Component {
   private completePuzzle(): void {
     const puzzle = this.engine!.puzzle;
     this.store.complete(puzzle);
-    const root = this.node.children[0];
+    const root = this.screen!;
     const overlay = this.panel(root, 0, 0, 1080, 1920, new Color(0, 0, 0, 150), 0);
     this.panel(overlay, 0, 0, 860, 530, CREAM);
     this.text(overlay, '案件解决！', 0, 135, 700, 75, 50, GREEN);
