@@ -125,7 +125,8 @@ export class GameApp extends Component {
   private showHome(): void {
     this.view = 'home';
     const root = this.baseScreen('欢迎回来，侦探', '从一条线索开始，拼出整个真相。');
-    this.art(root, 'art/detective-hero', 0, 220, 920, 1500);
+    // The case map is deliberately visible on launch, not hidden behind a later menu.
+    this.art(root, 'art/story-case-map', 0, 0, 1080, 1920);
     const card = this.panel(root, 0, 230, 900, 330, new Color('#FFFDF9'), 32); this.pop(card);
     this.text(card, '案件档案已整理完毕', 0, 92, 720, 52, 34);
     this.text(card, '观察 · 排除 · 关联', 0, 37, 720, 40, 25, MUTED);
