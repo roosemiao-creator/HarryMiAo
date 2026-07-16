@@ -10,10 +10,10 @@ const BG = new Color('#FFF8E9');
 const SURFACE = new Color('#FFFFFF');
 const INK = new Color('#2F3B4A');
 const MUTED = new Color('#778294');
-const PRIMARY = new Color('#4E9BC0');
-const PRIMARY_DARK = new Color('#377A9B');
-const MINT = new Color('#74B88E');
-const GOLD = new Color('#F1BB52');
+const PRIMARY = new Color('#167887');
+const PRIMARY_DARK = new Color('#0E4857');
+const MINT = new Color('#398E83');
+const GOLD = new Color('#C99237');
 const CORAL = new Color('#E67670');
 const SAND = new Color('#EFE7D8');
 const CLUE_BG = new Color('#805C4C');
@@ -105,11 +105,12 @@ export class GameApp extends Component {
     this.screen = root;
     // Fallback colour is a child, so artwork can be layered directly above it.
     this.panel(root, 0, 0, 1080, 1920, BG, 0);
-    this.panel(root, 0, 815, 1080, 170, new Color('#FFFDF7'), 0);
-    this.chip(root, '童话侦探社', -285, 826, 220, PRIMARY_DARK);
-    this.button(root, this.sounds.enabled ? '声音 开' : '声音 关', 410, 826, 160, 54, () => { this.sounds.toggle(); this.renderCurrentScreen(); }, this.sounds.enabled ? new Color('#74B88E') : new Color('#9AA5B0'), 21);
-    this.text(root, title, 80, 822, 600, 58, 42, INK);
-    if (subtitle) this.text(root, subtitle, 80, 764, 720, 40, 23, MUTED);
+    // Page artwork owns the chrome. These are transparent interaction and
+    // text layers placed inside its title cartouche, rather than a second UI.
+    this.chip(root, '童话侦探社', -310, 700, 220, PRIMARY_DARK);
+    this.button(root, this.sounds.enabled ? '声音 开' : '声音 关', 365, 700, 170, 54, () => { this.sounds.toggle(); this.renderCurrentScreen(); }, this.sounds.enabled ? MINT : new Color('#565C6B'), 21);
+    this.text(root, title, 0, 704, 560, 58, 42, new Color('#FFF1C9'));
+    if (subtitle) this.text(root, subtitle, 0, 648, 690, 40, 23, new Color('#D8E5E8'));
     return root;
   }
 
@@ -144,13 +145,13 @@ export class GameApp extends Component {
     const root = this.baseScreen('欢迎回来，侦探', '从一条线索开始，拼出整个真相。');
     // The case map is deliberately visible on launch, not hidden behind a later menu.
     this.art(root, 'art/ui-home-v2', 0, 0, 1080, 1920);
-    const card = this.panel(root, 0, 230, 900, 330, new Color('#FFFDF9'), 32); this.pop(card);
+    const card = this.panel(root, 0, 230, 840, 330, new Color(255, 255, 255, 0), 32); this.pop(card);
     this.text(card, '案件档案已整理完毕', 0, 92, 720, 52, 34);
     this.text(card, '观察 · 排除 · 关联', 0, 37, 720, 40, 25, MUTED);
-    this.button(card, '开始训练', 0, -65, 650, 94, () => this.showLevelSelect('challenge'), MINT, 32);
-    this.button(root, '进入故事案件', 0, -255, 650, 94, () => this.showLevelSelect('story'), GOLD, 32);
-    this.chip(root, `提示 ${this.store.hints}`, -150, -385, 230, new Color('#F7D891'), INK);
-    this.chip(root, `擦除 ${this.store.erasers}`, 150, -385, 230, new Color('#C9E1EC'), INK);
+    this.button(card, '开始训练', 0, -65, 650, 94, () => this.showLevelSelect('challenge'), PRIMARY, 32);
+    this.button(root, '进入故事案件', 0, -255, 650, 94, () => this.showLevelSelect('story'), PRIMARY_DARK, 32);
+    this.chip(root, `提示 ${this.store.hints}`, -150, -385, 230, new Color('#0B6670'), new Color('#FFF4CF'));
+    this.chip(root, `擦除 ${this.store.erasers}`, 150, -385, 230, new Color('#45315E'), new Color('#FFF4CF'));
   }
 
   private renderCurrentScreen(): void {
@@ -197,7 +198,7 @@ export class GameApp extends Component {
     this.chip(root, `线索 ${engine.unlockedClueCount}/${engine.totalClueCount}`, -62, 692, 205, new Color('#D9EBD6'), new Color('#3B7957'));
     this.chip(root, `♥ ${engine.lives}/${puzzle.lives}`, 220, 692, 160, new Color('#F7D7D4'), CORAL);
 
-    const grid = this.panel(root, 0, 265, 1010, 690, SURFACE, 30); if (animate) this.pop(grid);
+    const grid = this.panel(root, 0, 265, 1010, 690, new Color(255, 255, 255, 0), 30); if (animate) this.pop(grid);
     const labelX = -382; const colWidth = 232;
     puzzle.entities.forEach((entity, col) => this.text(grid, `${entity.icon}\n${entity.name}`, labelX + (col + 1) * colWidth, 265, 205, 96, 27));
     puzzle.categories.forEach((category, row) => {
@@ -212,7 +213,7 @@ export class GameApp extends Component {
       });
     });
 
-    const cluePanel = this.panel(root, 0, -465, 1010, 390, CLUE_BG, 30);
+    const cluePanel = this.panel(root, 0, -465, 1010, 390, new Color(57, 34, 47, 205), 30);
     this.chip(cluePanel, `证据批次 ${engine.activeStageIndex + 1}`, -330, 151, 245, new Color('#A87D63'));
     this.text(cluePanel, engine.activeStage.narrator ?? '', 100, 151, 590, 44, 24, new Color('#FFF0D0'));
     const clues = engine.shownClues;

@@ -70,7 +70,9 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     const answer = assignmentFor(entityIndex, 0);
     const current = details(answer);
     const wrongOptions = categories[0].options.filter((option) => option.id !== answer.optionId);
-    const text = entityIndex === 0 || order <= 2
+    // Only one early anchor is fully determined. The other two must be
+    // resolved with the all-different row rule, not handed to the player.
+    const text = entityIndex === 0
       ? `排除：${entity.icon}${entity.name}的${current.category.label}既不是${wrongOptions[0].icon}${wrongOptions[0].label}，也不是${wrongOptions[1].icon}${wrongOptions[1].label}。`
       : `排除：${entity.icon}${entity.name}不使用${wrongOptions[0].icon}${wrongOptions[0].label}的${current.category.label}。`;
     return { id: `${mode}-${order}-anchor-${entityIndex}`, text, completesWhen: [answer] };
