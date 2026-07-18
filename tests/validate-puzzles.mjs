@@ -19,4 +19,10 @@ assert.match(engine, /getHint\(\)/, 'engine must provide a hint path');
 assert.match(engine, /this\.lives -= 1/, 'engine must immediately penalize a wrong answer');
 assert.match(engine, /while \(this\.activeStageIndex \+ 1/, 'engine must unlock all newly reachable stages');
 
-console.log('Puzzle data structure validated: 20 levels, staged evidence, hint and life rules present.');
+const campaign = readFileSync(new URL('../assets/scripts/data/OriginalCampaignProfile.ts', import.meta.url), 'utf8');
+assert.match(campaign, /length: 331/, 'original campaign must contain 331 level blueprints');
+assert.match(campaign, /'adjacency'/, 'campaign must support adjacency constraints');
+assert.match(campaign, /'comparison'/, 'campaign must support comparison constraints');
+assert.match(campaign, /'count'/, 'campaign must support count constraints');
+
+console.log('Puzzle data structure validated: 20 playable levels and a 331-level original campaign blueprint.');
