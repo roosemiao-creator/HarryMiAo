@@ -66,15 +66,14 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
    * identity exclusions establish the first attribute, then two independent
    * attribute-to-attribute matchings propagate the answer through the grid.
    */
-  const anchors: Clue[] = entities.map((entity, entityIndex) => {
+  const anchors: Clue[] = entities.slice(1).map((entity, offset) => {
+    const entityIndex = offset + 1;
     const answer = assignmentFor(entityIndex, 0);
     const current = details(answer);
     const wrongOptions = categories[0].options.filter((option) => option.id !== answer.optionId);
-    // Only one early anchor is fully determined. The other two must be
-    // resolved with the all-different row rule, not handed to the player.
-    const text = entityIndex === 0
-      ? `排除：${entity.icon}${entity.name}的${current.category.label}既不是${wrongOptions[0].icon}${wrongOptions[0].label}，也不是${wrongOptions[1].icon}${wrongOptions[1].label}。`
-      : `排除：${entity.icon}${entity.name}不使用${wrongOptions[0].icon}${wrongOptions[0].label}的${current.category.label}。`;
+    // One exclusion alone is never an answer. It becomes decisive only after
+    // the player combines it with the visible opening cell and row uniqueness.
+    const text = `排除：${entity.icon}${entity.name}不使用${wrongOptions[0].icon}${wrongOptions[0].label}的${current.category.label}。`;
     return { id: `${mode}-${order}-anchor-${entityIndex}`, text, completesWhen: [answer] };
   });
   const firstLinks: Clue[] = entities.map((entity, entityIndex) => {
@@ -96,7 +95,7 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     };
   });
   const groups = [anchors, firstLinks, secondLinks];
-  const unlockKeys = [[], [assignmentFor(0, 0)], [assignmentFor(1, 0), assignmentFor(0, 1)]];
+  const unlockKeys = [[], [assignmentFor(1, 0)], [assignmentFor(1, 1), assignmentFor(2, 0)]];
   return {
     id: `${mode}-${String(order).padStart(2, '0')}`,
     mode,
@@ -108,6 +107,9 @@ function makePuzzle(theme: Theme, mode: GameMode, order: number, chapter?: numbe
     entities,
     categories,
     solution,
+    // A visible opening fact creates a real deduction instead of an
+    // over-explicit two-option exclusion clue.
+    initialAssignments: [assignmentFor(0, 0)],
     stages: groups.map((group, index) => ({
       id: `stage-${index + 1}`,
       narrator: index === 0 ? '先用排除法找出第一组锚点。' : index === 1 ? '把第一组属性与第二组属性配对。' : '最后一层关系会把整张表串起来。',

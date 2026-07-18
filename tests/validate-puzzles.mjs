@@ -8,7 +8,8 @@ const storyBlock = source.match(/const storyThemes: Theme\[] = \[([\s\S]*?)\n\] 
 assert.equal((challengeBlock.match(/^  \[/gm) ?? []).length, 10, 'must ship ten challenge puzzles');
 assert.equal((storyBlock.match(/^  \[/gm) ?? []).length, 10, 'must ship ten story puzzles');
 assert.match(source, /const groups = \[anchors, firstLinks, secondLinks\]/, 'puzzles must expose the three-step deduction chain');
-assert.match(source, /既不是.*也不是/, 'puzzles must begin with meaningful identity exclusions');
+assert.match(source, /entities\.slice\(1\)/, 'opening clues must not directly eliminate two of three options');
+assert.match(source, /initialAssignments: \[assignmentFor\(0, 0\)\]/, 'opening deduction must use a visible initial fact');
 assert.match(source, /使用.*的客人，选择的是/, 'puzzles must link the first and second attributes');
 assert.match(source, /的客人，位于/, 'puzzles must link the second and third attributes');
 assert.match(source, /requiredCells: unlockKeys\[index\]/, 'stage unlocks must be linked to verified key deductions');

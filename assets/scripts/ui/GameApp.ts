@@ -25,6 +25,7 @@ export class GameApp extends Component {
   private engine?: PuzzleEngine;
   private mode: GameMode = 'challenge';
   private view: 'home' | 'levels' | 'puzzle' = 'home';
+  private levelPage = 0;
   private erasing = false;
   private toast = '';
   /** Canvas also owns Camera; only this dynamic root may be destroyed. */
@@ -107,10 +108,10 @@ export class GameApp extends Component {
     this.panel(root, 0, 0, 1080, 1920, BG, 0);
     // Page artwork owns the chrome. These are transparent interaction and
     // text layers placed inside its title cartouche, rather than a second UI.
-    this.chip(root, '童话侦探社', -310, 700, 220, PRIMARY_DARK);
-    this.button(root, this.sounds.enabled ? '声音 开' : '声音 关', 365, 700, 170, 54, () => { this.sounds.toggle(); this.renderCurrentScreen(); }, this.sounds.enabled ? MINT : new Color('#565C6B'), 21);
-    this.text(root, title, 0, 704, 560, 58, 42, new Color('#FFF1C9'));
-    if (subtitle) this.text(root, subtitle, 0, 648, 690, 40, 23, new Color('#D8E5E8'));
+    this.chip(root, '童话侦探社', -300, 800, 210, PRIMARY_DARK);
+    this.button(root, this.sounds.enabled ? '声音 开' : '声音 关', 385, 800, 150, 54, () => { this.sounds.toggle(); this.renderCurrentScreen(); }, this.sounds.enabled ? MINT : new Color('#565C6B'), 21);
+    this.text(root, title, 0, 806, 520, 56, 40, new Color('#FFF1C9'));
+    if (subtitle) this.text(root, subtitle, 0, 748, 640, 36, 21, new Color('#D8E5E8'));
     return root;
   }
 
@@ -142,6 +143,7 @@ export class GameApp extends Component {
 
   private showHome(): void {
     this.view = 'home';
+    this.levelPage = 0;
     const root = this.baseScreen('欢迎回来，侦探', '从一条线索开始，拼出整个真相。');
     // The case map is deliberately visible on launch, not hidden behind a later menu.
     this.art(root, 'art/ui-home-v2', 0, 0, 1080, 1920);
@@ -161,23 +163,30 @@ export class GameApp extends Component {
   }
 
   private showLevelSelect(mode: GameMode): void {
+    if (this.mode !== mode) this.levelPage = 0;
     this.view = 'levels';
     this.mode = mode;
     const puzzles = mode === 'challenge' ? CHALLENGE_PUZZLES : STORY_PUZZLES;
     const root = this.baseScreen(mode === 'challenge' ? '侦探训练' : '故事案件簿', mode === 'challenge' ? '每一关都会加入更多交叉关系。' : '顺着案件线索，接近钟楼的真相。');
     this.art(root, 'art/ui-level-select-v2', 0, 0, 1080, 1920);
-    this.button(root, '返回', -430, 700, 155, 64, () => this.showHome(), new Color('#95A1AC'), 24);
-    let y = mode === 'story' ? 270 : 600;
-    puzzles.forEach((puzzle, index) => {
-      if (mode === 'story' && (index === 0 || [2, 4, 7].includes(index))) this.text(root, `第${puzzle.chapter}章 · ${CHAPTER_TITLES[(puzzle.chapter ?? 1) - 1]}`, 0, y + 64, 850, 38, 25, PRIMARY_DARK);
+    this.button(root, '返回', -430, 855, 145, 58, () => this.showHome(), PRIMARY_DARK, 22);
+    const pageSize = 8;
+    const start = this.levelPage * pageSize;
+    const visible = puzzles.slice(start, start + pageSize);
+    let y = 520;
+    visible.forEach((puzzle, localIndex) => {
+      const index = start + localIndex;
+      if (mode === 'story' && (index === 0 || [2, 4, 7].includes(index))) this.text(root, `第${puzzle.chapter}章 · ${CHAPTER_TITLES[(puzzle.chapter ?? 1) - 1]}`, 0, y + 60, 760, 34, 23, PRIMARY_DARK);
       const unlocked = this.store.isUnlocked(puzzle, puzzles);
       const done = this.store.isComplete(puzzle.id);
       const title = `${done ? '✓ ' : unlocked ? '' : '🔒 '}${String(puzzle.order).padStart(2, '0')}  ${puzzle.title}`;
       const color = unlocked ? (done ? MINT : PRIMARY) : new Color('#B9B5AE');
       const levelButton = this.button(root, title, 0, y, 860, 74, () => { if (unlocked) this.startPuzzle(puzzle); }, color, 27);
       this.reveal(levelButton, index * 0.045);
-      y -= mode === 'story' ? 92 : 96;
+      y -= 164;
     });
+    if (start > 0) this.button(root, '上一页', -210, -820, 230, 62, () => { this.levelPage -= 1; this.showLevelSelect(mode); }, PRIMARY_DARK, 22);
+    if (start + pageSize < puzzles.length) this.button(root, '下一页', 210, -820, 230, 62, () => { this.levelPage += 1; this.showLevelSelect(mode); }, PRIMARY, 22);
   }
 
   private startPuzzle(puzzle: PuzzleDefinition): void {
